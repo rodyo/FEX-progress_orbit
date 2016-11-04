@@ -56,11 +56,11 @@ function varargout = progress_orbitM(dts, varargin)
 
 
 % If you find this work useful, please consider a donation:
-% https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=6G3S5UYM7HJ3N
+% https://www.paypal.me/RodyO/3.5
 
     
     % standard error
-    error(nargchk(3, 9, nargin));%#ok
+    error(nargchk(3, 9, nargin, 'struct'));
             
     % parse input
     narg = nargin;
@@ -93,16 +93,17 @@ function varargout = progress_orbitM(dts, varargin)
     
     % progress only one orbit (to command window, debugging puruposes only)
     if numel(r1) ~= 3
-        error('progress_orbit:only_one_body_allowed',...
-              'I can only progress one orbit at a time. Please use ARRAYFUN().');
+        error([mfilename ':only_one_body_allowed'], [...
+              'I can only progress one orbit at a time. ',...
+              'Please use ARRAYFUN().']);
     end
       
     % times are given in days, unless specified otherwise
     if strcmpi(time_unit, 'days')
         dts = dts * 86400;   
     elseif ~strcmpi(time_unit, 'seconds')
-        error('progress_orbit:invalid_timeunit',...
-            'Only ''seconds'' and ''days'' are valid timeunits.');
+        error([mfilename ':invalid_timeunit'],...
+              'Only ''seconds'' and ''days'' are valid timeunits.');
     end
     
     % intitialize
@@ -136,7 +137,7 @@ function varargout = progress_orbitM(dts, varargin)
         
         % loop until convergence of the time step
         u = 0; t = 0; qisbad = false; iter = 0; cont_frac = 0; deltaT = t-dt;
-        while abs(deltaT) > 1 % one second accuracy seems fine
+        while abs(deltaT) > 1e-3 % one second accuracy seems fine
             
             % increase iterations
             iter = iter + 1;
