@@ -1,15 +1,15 @@
-% PROGRESS_ORBIT   progress orbit/trajectory through Kepler state 
-%                  transition matrix 
+% PROPAGATE_ORBIT  progress orbit/trajectory through Kepler state
+%                  transition matrix
 %
-% USAGE: 
-%   new_state = progress_orbit(time_step, [x y z xdot ydot zdot], GM_central)
+% USAGE:
+%   new_state = propagate_orbit(time_step, [x y z xdot ydot zdot], GM_central)
 %   [x y z xdot ydot zdot] = ...
-%              progress_orbit(time_step, x, y, z, xdot, ydot, zdot, GM_central, 'days' or 'seconds')
+%              propagate_orbit(time_step, x, y, z, xdot, ydot, zdot, GM_central, 'days' or 'seconds')
 %
 % INPUT:
 % ======================
-%     x,y,z,     - Initial Cartesian statevector; 3 position coordinates, and     
-% xdot,ydot,zdot   3 velocity components. 
+%     x,y,z,     - Initial Cartesian statevector; 3 position coordinates, and
+% xdot,ydot,zdot   3 velocity components.
 %
 %      time_step - the time step(s) to take. May be scalar or vector. In
 %                  case of a vector, the output arument(s) will have a
@@ -30,59 +30,57 @@
 % Kepler's equation. The resulting algorithm is an order of magnitude
 % faster that mentioned triple coordinate conversion, which makes it very
 % well suited as a basis for a number of other algorithms that require
-% frequent progressing of state vectors. 
+% frequent progressing of state vectors.
 %
 % This procedure implements a robust version of this algorithm. A small
 % correction to the original version was made: instead of Newton's method
 % to update the Kepler-loop, a Halley-step is used. This change makes the
 % algorithm much more robust while increasing the rate of convergence even
-% further. If the algorithm fails however, the slower triple-coordinate 
-% conversion is automatically started. 
+% further. If the algorithm fails however, the slower triple-coordinate
+% conversion is automatically started.
 %
 %
-% References: 
+% References:
 % [1] S.W. Shepperd, "Universal Keplerian State Transition Matrix".
 % Celestial Mechanics 35(1985) pp. 129--144, DOI: 0008-8714/85.15
 %
 % See also kep2cart, cart2kep.
-function varargout = progress_orbitM(dts, varargin)
-% Please report bugs and inquiries to: 
+function varargout = propagate_orbitM(dts, varargin)
+% Please report bugs and inquiries to:
 %
-% Name       : Rody P.S. Oldenhuis
-% E-mail     : oldenhuis@gmail.com    (personal)
-%              oldenhuis@luxspace.lu  (professional)
-% Affiliation: LuxSpace sàrl
-% Licence    : BSD
+% Name   : Rody P.S. Oldenhuis
+% E-mail : oldenhuis@gmail.com
+% Licence: 2-clause BSD (See Licence.txt)
 
 
 % If you find this work useful, please consider a donation:
 % https://www.paypal.me/RodyO/3.5
 
-    
+
     % standard error
     error(nargchk(3, 9, nargin, 'struct'));
-            
+
     % parse input
     narg = nargin;
     time_unit = 'days';
-    if (narg >= 8)       
+    if (narg >= 8)
         % otherwise
         r1 = [varargin{1:3}];
-        v1 = [varargin{4:6}];   
-        muC = varargin{7};  
+        v1 = [varargin{4:6}];
+        muC = varargin{7};
     end
     if (narg == 9), time_unit = varargin{8}; end
-    if (narg <= 4)    
+    if (narg <= 4)
         % otherwise
         r1 = varargin{1}(1:3);
         v1 = varargin{1}(4:6);
-        muC = varargin{2};        
+        muC = varargin{2};
     end
-    if (narg == 4), time_unit = varargin{3}; end    
-    
+    if (narg == 4), time_unit = varargin{3}; end
+
     % force everyting to be row-matrices
     r1 = r1(:).';   v1 = v1(:).';
-    
+
     % initialize output
     zero                        = zeros(numel(dts), 1);
     exitflag                    = zero;
@@ -90,27 +88,27 @@ function varargout = progress_orbitM(dts, varargin)
     output.Kepler_iterations    = zero;
     output.cont_frac_iterations = zero;
     output.time_error           = zero;
-    
+
     % progress only one orbit (to command window, debugging puruposes only)
     if numel(r1) ~= 3
         error([mfilename ':only_one_body_allowed'], [...
               'I can only progress one orbit at a time. ',...
               'Please use ARRAYFUN().']);
     end
-      
+
     % times are given in days, unless specified otherwise
     if strcmpi(time_unit, 'days')
-        dts = dts * 86400;   
+        dts = dts * 86400;
     elseif ~strcmpi(time_unit, 'seconds')
         error([mfilename ':invalid_timeunit'],...
               'Only ''seconds'' and ''days'' are valid timeunits.');
     end
-    
+
     % intitialize
     nu0  = r1*v1.';
     r1m  = sqrt(r1*r1.');
     beta = 2*muC/r1m - v1*v1.';
-    
+
     % period effects
     DeltaU = zero;
     if (beta > 0)
@@ -118,13 +116,13 @@ function varargout = progress_orbitM(dts, varargin)
         n = floor((dts + P/2 - 2*nu0/beta)/P);
         DeltaU = 2*pi*n*beta^(-5/2);
     end
-    
+
     % loop through all requested time steps
     for i = 1:numel(dts)
-        
+
         % extract current time step
         dt = dts(i);
-        
+
         % quick exit for trivial case
         if (dt == 0)
             final_states(i, :) = [r1,v1];
@@ -133,28 +131,28 @@ function varargout = progress_orbitM(dts, varargin)
             output.cont_frac_iterations(i) = 0;
             output.time_error(i)           = 0;
             continue;
-        end 
-        
+        end
+
         % loop until convergence of the time step
         u = 0; t = 0; qisbad = false; iter = 0; cont_frac = 0; deltaT = t-dt;
         while abs(deltaT) > 1e-3 % one second accuracy seems fine
-            
+
             % increase iterations
             iter = iter + 1;
-            
+
             % compute q
-            % NOTE: [q] may not exceed 1/2. In principle, this will never 
-            % occur, but the iterative nature of the procedure can bring 
+            % NOTE: [q] may not exceed 1/2. In principle, this will never
+            % occur, but the iterative nature of the procedure can bring
             % it above 1/2 for some iterations.
             bu = beta*u*u;
             q  = bu/(1 + bu);
-            
+
             % escape clause;
-            % The value for [q] will almost always stabilize to a value less 
+            % The value for [q] will almost always stabilize to a value less
             % than 1/2 after a few iterations, but NOT always. In those
             % cases, just use repeated coordinate transformations
             if (iter > 25) || (q >= 1), qisbad = true; break; end
-            
+
             % evaluate continued fraction (when q < 1, always converges)
             A =  1;   B = 1;   G = 1;   n = 0;
             k = -9;   d = 15;  l = 3;   Gprev = inf;
@@ -165,7 +163,7 @@ function varargout = progress_orbitM(dts, varargin)
                 Gprev = G;              G = G + B;
                 cont_frac = cont_frac + 1;
             end % continued fraction evaluation
-            
+
             % continue kepler loop
             U0w2   = 1 - 2*q;
             U1w2   = 2*(1-q)*u;
@@ -177,17 +175,17 @@ function varargout = progress_orbitM(dts, varargin)
             r      = r1m*U0 + nu0*U1 + muC*U2;
             t      = r1m*U1 + nu0*U2 + muC*U3;
             deltaT = t - dt;
-            % Newton-Raphson method works most of the time, but is 
+            % Newton-Raphson method works most of the time, but is
             % not too stable; the method fails far too often for my
             % liking...
-            % u = u - deltaT/4/(1-q)/r; 
-            % Halley's method is much better in that respect. Working 
-            % out all substitutions and collecting terms gives the 
+            % u = u - deltaT/4/(1-q)/r;
+            % Halley's method is much better in that respect. Working
+            % out all substitutions and collecting terms gives the
             % following simplification:
             u = u - deltaT/((1-q)*(4*r + deltaT*beta*u));
 
         end % time loop
-                
+
         % do it the slow way if state transition matrix fails for some q
         if qisbad
             % repeated coordinate transformations
@@ -196,26 +194,26 @@ function varargout = progress_orbitM(dts, varargin)
             [x, y, z, xd, yd, zd] = kep2cart(aa, ee, ii, OO, oo, M, muC, 'M');
             final_states(i, :) = [x, y, z, xd, yd, zd];
             % this means failure
-            exitflag(i) = -1;            
-            
+            exitflag(i) = -1;
+
         % use state transition matrix if all went well
         else
             % Kepler solution
             f = 1 - muC/r1m*U2;     F = -muC*U1/r/r1m;
             g = r1m*U1 + nu0*U2;    G = 1 - muC/r*U2;
             % create new position and velocity matrices
-            final_states(i, :) = [r1*f+v1*g, r1*F+v1*G]; 
+            final_states(i, :) = [r1*f+v1*g, r1*F+v1*G];
             % all went fine
             exitflag(i) = 1;
         end % "q is bad" clause
-        
+
         % process output
         output.Kepler_iterations(i)    = iter;
         output.cont_frac_iterations(i) = cont_frac;
         output.time_error(i)           = abs(t-dt);
-        
+
     end % loop through [dt]
-    
+
     % generate properly formatted output
     narg = nargout;
     if (narg <= 3)
@@ -229,5 +227,5 @@ function varargout = progress_orbitM(dts, varargin)
         varargout{7} = exitflag;         % exitflag
         varargout{8} = output;           % output
     end % process output
-    
+
 end % progress orbit

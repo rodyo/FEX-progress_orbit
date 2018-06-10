@@ -1,10 +1,8 @@
-% Please report bugs and inquiries to: 
+% Please report bugs and inquiries to:
 %
-% Name       : Rody P.S. Oldenhuis
-% E-mail     : oldenhuis@gmail.com    (personal)
-%              oldenhuis@luxspace.lu  (professional)
-% Affiliation: LuxSpace sàrl
-% Licence    : BSD
+% Name   : Rody P.S. Oldenhuis
+% E-mail : oldenhuis@gmail.com
+% Licence: 2-clause BSD (See Licence.txt)
 
 
 % If you find this work useful, please consider a donation:
@@ -23,10 +21,10 @@ muC   = 1.32e11;
 progress_shown = false;
 
 for ii = 1:numel(dt)
-    
+
     % get 100 random days
     TIMES = dt(round( 36525*rand(100,1)+1 ));
-    
+
     % show progress
     if mod(ii,100)==0
         if progress_shown
@@ -34,17 +32,17 @@ for ii = 1:numel(dt)
         fprintf(1, '%3d%% complete...', round(100*ii/numel(dt)));
         progress_shown = true;
     end
-    
+
     % test M-version
     start = tic;
-        A = progress_orbitM(TIMES, state, muC); %#ok<SNASGU>
+        A = propagate_orbitM(TIMES, state, muC); %#ok<SNASGU>
     Mtime(ii) = toc(start);
-    
+
     % test MEX-version
     start = tic;
-        B = progress_orbit(TIMES(:), state, muC); %#ok<SNASGU>
+        B = propagate_orbit(TIMES(:), state, muC); %#ok<SNASGU>
     MEXtime(ii) = toc(start);
-        
+
 end
 
 % plot speedup

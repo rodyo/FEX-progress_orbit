@@ -1,14 +1,12 @@
 /*
  * Please report bugs and inquiries to:
  *
- * Name       : Rody P.S. Oldenhuis
- * E-mail     : oldenhuis@gmail.com    (personal)
- *              oldenhuis@luxspace.lu  (professional)
- * Affiliation: LuxSpace sàrl
- * Licence    : BSD
+ * Name   : Rody P.S. Oldenhuis
+ * E-mail : oldenhuis@gmail.com
+ * Licence: 2-clause BSD (See Licence.txt)
  *
  * If you find this work useful, please consider a donation:
- * https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=6G3S5UYM7HJ3N
+ * https://www.paypal.me/RodyO/3.5
  *
  */
 
@@ -18,8 +16,11 @@
 #include <matrix.h>
 
 /* gateway function */
-void mexFunction(int nlhs, mxArray *plhs[] , int nrhs, const mxArray *prhs[])
+void
+mexFunction(int nlhs,       mxArray *plhs[],
+            int nrhs, const mxArray *prhs[])
 {
+    #define FCN_NAME "PROPAGATE_ORBIT"
     #define TWO_PI (6.283185307179586476925286766559005768394338798750211641949889184615632812572417997256069650684234136)
 
     unsigned int i;
@@ -46,7 +47,7 @@ void mexFunction(int nlhs, mxArray *plhs[] , int nrhs, const mxArray *prhs[])
 
     /* narg check */
     if ((nrhs > 9) || (nrhs < 3))
-        mexErrMsgTxt("PROGRESS_ORBIT() requires more than 3, but "
+        mexErrMsgTxt(FCN_NAME "() requires more than 3, but "
                      "less than 9 input arguments.");
 
     /* parse input */
@@ -84,7 +85,7 @@ void mexFunction(int nlhs, mxArray *plhs[] , int nrhs, const mxArray *prhs[])
     if (!strcmp(tunits, "seconds"))
         t_in_days = 0u;
     else if (strcmp(tunits, "days")>0) {
-        mexErrMsgTxt("Time units must be specified as either "
+        mexErrMsgTxt(FCN_NAME ": time units must be specified as either "
                      "'seconds' or 'days'.");
         return;
     }
